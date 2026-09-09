@@ -2,8 +2,6 @@ name: Deploy Raspberry Pi
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   deploy:
@@ -33,4 +31,3 @@ jobs:
             cd "${{ secrets.PI_DEPLOY_PATH }}"
             docker compose up -d --build --remove-orphans
             docker compose ps
-

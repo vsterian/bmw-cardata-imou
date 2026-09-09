@@ -108,7 +108,7 @@ Required GitHub repository secrets:
 | `PI_SSH_PASSWORD` | Raspberry Pi SSH password |
 | `PI_DEPLOY_PATH` | `/repos/bmw-cardata-imou` |
 
-Workflow assumes Pi user can write deployment path and run Docker. Push to `main` or run `Deploy Raspberry Pi` manually.
+Workflow assumes Pi user can write deployment path and run Docker. Deployment is manual-only until Raspberry Pi runtime validation is complete; run `Deploy Raspberry Pi` from GitHub Actions.
 
 ## Recovery
 
