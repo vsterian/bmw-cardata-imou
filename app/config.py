@@ -121,7 +121,7 @@ class Settings:
             target_longitude=target_longitude,
             target_radius_meters=radius,
             location_pair_window_seconds=_float("LOCATION_PAIR_WINDOW_SECONDS", 60.0),
-            imou_base_url=os.getenv("IMOU_BASE_URL", "https://openapi.easy4ip.com/openapi").rstrip("/"),
+            imou_base_url=os.getenv("IMOU_BASE_URL", "https://openapi-fk.easy4ip.com:443/openapi").rstrip("/"),
             imou_app_id=imou_app_id,
             imou_app_secret=imou_app_secret,
             imou_device_id=imou_device_id,
