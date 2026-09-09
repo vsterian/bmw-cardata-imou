@@ -145,6 +145,7 @@ class BMWStream:
             protocol=mqtt.MQTTv311,
             transport="tcp",
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+            reconnect_on_failure=False,
         )
         client.user_data_set({"topic": self._topic()})
         client.username_pw_set(self.settings.bmw_gcid, id_token)
@@ -154,7 +155,6 @@ class BMWStream:
         tls_context.minimum_version = ssl.TLSVersion.TLSv1_3
         client.tls_set_context(tls_context)
         client.tls_insecure_set(False)
-        client.reconnect_delay_set(min_delay=5, max_delay=60)
         client.on_connect = self._on_connect
         client.on_message = self._on_message
         client.on_disconnect = self._on_disconnect

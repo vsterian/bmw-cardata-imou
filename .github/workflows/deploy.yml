@@ -28,6 +28,7 @@ jobs:
           password: ${{ secrets.PI_SSH_PASSWORD }}
           script: |
             set -eu
+            mkdir -p "${{ secrets.PI_DEPLOY_PATH }}"
             cd "${{ secrets.PI_DEPLOY_PATH }}"
             docker compose up -d --build --remove-orphans
             docker compose ps

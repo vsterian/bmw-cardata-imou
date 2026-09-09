@@ -124,9 +124,11 @@ Required GitHub repository secrets:
 | `PI_SSH_PORT` | `21` |
 | `PI_USER` | Raspberry Pi SSH user |
 | `PI_SSH_PASSWORD` | Raspberry Pi SSH password |
-| `PI_DEPLOY_PATH` | `/repos/bmw-cardata-imou` |
+| `PI_DEPLOY_PATH` | `/home/pi/repos/bmw-cardata-imou` |
 
 Workflow assumes Pi user can write deployment path and run Docker. Deployment workflow is manual-only; run `Deploy Raspberry Pi` from GitHub Actions when deployment is desired.
+
+BMW CarData limits: REST API access is limited to 50 requests per day, while this service uses MQTT streaming and makes no BMW REST vehicle-data calls. BMW allows one stream connection per GCID and monitors rapid connection attempts; the service disables MQTT library auto-reconnect and waits at least 60 seconds between application reconnect attempts.
 
 ## Recovery
 
