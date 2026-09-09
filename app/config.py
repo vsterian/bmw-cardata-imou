@@ -119,7 +119,7 @@ class Settings:
             bmw_stream_port=_int("BMW_STREAM_PORT", 9000),
             bmw_mqtt_client_id=os.getenv("BMW_MQTT_CLIENT_ID", "bmw-cardata-imou").strip(),
             bmw_refresh_interval_seconds=refresh_interval_seconds,
-            bmw_keepalive_seconds=_int("BMW_KEEPALIVE_SECONDS", 120),
+            bmw_keepalive_seconds=_int("BMW_KEEPALIVE_SECONDS", 30),
             bmw_reconnect_delay_seconds=reconnect_delay_seconds,
             bmw_token_file=Path(os.getenv("BMW_TOKEN_FILE", "/data/bmw-tokens.json")),
             bmw_vin=_required("BMW_VIN").upper(),
