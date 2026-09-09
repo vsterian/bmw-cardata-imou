@@ -91,7 +91,7 @@ Run tests:
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
+python -m pytest
 ```
 
 ## Raspberry Pi deployment
