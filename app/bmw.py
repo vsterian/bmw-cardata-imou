@@ -149,9 +149,9 @@ class BMWStream:
         client.user_data_set({"topic": self._topic()})
         client.username_pw_set(self.settings.bmw_gcid, id_token)
         tls_context = ssl.create_default_context()
-        if hasattr(ssl, "TLSVersion"):
-            tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
-            tls_context.maximum_version = ssl.TLSVersion.TLSv1_2
+        if not hasattr(ssl, "TLSVersion") or not hasattr(ssl.TLSVersion, "TLSv1_3"):
+            raise BMWStreamError("BMW CarData MQTT requires TLS 1.3 support")
+        tls_context.minimum_version = ssl.TLSVersion.TLSv1_3
         client.tls_set_context(tls_context)
         client.tls_insecure_set(False)
         client.reconnect_delay_set(min_delay=5, max_delay=60)
