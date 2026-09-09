@@ -1,6 +1,6 @@
 # BMW CarData → Imou Camera
 
-Local Raspberry Pi automation replacing old Azure Function App BMW polling.
+Standalone Raspberry Pi automation that reads BMW CarData location events and controls an Imou camera.
 
 Flow:
 
@@ -14,7 +14,7 @@ target geofence transition
 Imou turnCollection
 ```
 
-Behavior preserved from `cleanfileshare`:
+Behavior:
 
 - first location inside target: Imou `Car`
 - outside → inside target: Imou `Car`
@@ -25,23 +25,40 @@ BMW CarData publishes coordinates, not formatted street addresses. Configure tar
 
 ## BMW authorization
 
-1. Create BMW CarData client ID.
-2. Enable `CarData API` and `CarData Stream` scopes.
-3. Configure stream descriptors and include:
+BMW CarData uses OAuth 2.0 Device Authorization Grant with PKCE.
+
+Prerequisites:
+
+- BMW ConnectedDrive account with vehicle mapped to account as primary user.
+- Active BMW CarData access.
+- CarData API and CarData Stream subscriptions enabled.
+
+Portal setup:
+
+1. Open your regional My BMW portal and select vehicle → BMW CarData.
+2. Create a new CarData client ID. Client ID is not BMW login email.
+3. Request access to `CarData API` and `CarData Stream`; allow time for BMW permissions to propagate.
+4. Configure stream descriptors and include:
 
    - `vehicle.cabin.infotainment.navigation.currentLocation.latitude`
    - `vehicle.cabin.infotainment.navigation.currentLocation.longitude`
 
-4. Run device authorization from a machine with browser access:
+Run device authorization from a machine with browser access:
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-python scripts/authorize_bmw.py --client-id YOUR_BMW_CLIENT_ID --output data/bmw-tokens.json
+python -u scripts/authorize_bmw.py \
+  --client-id YOUR_BMW_CLIENT_ID \
+  --output data/bmw-tokens.json
 ```
 
-Open printed BMW URL, approve device. Token file contains `client_id`, `gcid`, and `refresh_token` needed by service.
+Open printed BMW verification URL, enter user code if requested, and approve device. Helper polls BMW token endpoint and writes token JSON.
+
+Token response contains `client_id`, `gcid`, `access_token`, `refresh_token`, and `id_token`. Service needs `client_id`, `gcid`, and `refresh_token`; it refreshes short-lived tokens and persists rotated state in Docker volume `/data/bmw-tokens.json`.
+
+Never commit token JSON or `.env`.
 
 ## `.env`
 
@@ -59,15 +76,16 @@ Set these values:
 | `BMW_GCID` | `gcid` from `bmw-tokens.json` |
 | `BMW_REFRESH_TOKEN` | `refresh_token` from `bmw-tokens.json` |
 | `BMW_VIN` | 17-character uppercase VIN |
-| `TARGET_LATITUDE` | latitude for target street |
-| `TARGET_LONGITUDE` | longitude for target street |
-| `TARGET_RADIUS_METERS` | geofence radius covering target street, e.g. `100` |
-| `IMOU_APP_ID` | existing Imou app ID |
-| `IMOU_APP_SECRET` | existing Imou app secret |
-| `IMOU_DEVICE_ID` | existing camera device ID |
-| `IMOU_CHANNEL_ID` | existing channel, old implementation uses `0` |
+| `TARGET_LATITUDE` | target latitude |
+| `TARGET_LONGITUDE` | target longitude |
+| `TARGET_RADIUS_METERS` | target geofence radius, e.g. `100` |
+| `IMOU_BASE_URL` | Imou OpenAPI base URL |
+| `IMOU_APP_ID` | Imou app ID |
+| `IMOU_APP_SECRET` | Imou app secret |
+| `IMOU_DEVICE_ID` | Imou camera device ID |
+| `IMOU_CHANNEL_ID` | camera channel, usually `0` |
 
-Optional `BMW_ID_TOKEN` only helps first connection. Service refreshes and persists current BMW tokens in Docker volume `/data/bmw-tokens.json`.
+Optional `BMW_ID_TOKEN` can seed first connection. Service refreshes and persists current BMW tokens in Docker volume `/data/bmw-tokens.json`.
 
 ## Run locally
 
@@ -85,7 +103,7 @@ docker compose run --rm bmw-cardata-imou python -m app.cli Car
 docker compose run --rm bmw-cardata-imou python -m app.cli ZoomOut
 ```
 
-Start with `IMOU_DRY_RUN=true` to validate BMW stream and geofence without moving camera. Set `false` only after logs show BMW MQTT connection and location data.
+Set `IMOU_DRY_RUN=true` to validate BMW stream and geofence without moving camera. Set `false` for live camera actions.
 
 Run tests:
 
@@ -108,7 +126,7 @@ Required GitHub repository secrets:
 | `PI_SSH_PASSWORD` | Raspberry Pi SSH password |
 | `PI_DEPLOY_PATH` | `/repos/bmw-cardata-imou` |
 
-Workflow assumes Pi user can write deployment path and run Docker. Deployment is manual-only until Raspberry Pi runtime validation is complete; run `Deploy Raspberry Pi` from GitHub Actions.
+Workflow assumes Pi user can write deployment path and run Docker. Deployment workflow is manual-only; run `Deploy Raspberry Pi` from GitHub Actions when deployment is desired.
 
 ## Recovery
 
