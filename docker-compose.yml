@@ -1,0 +1,16 @@
+services:
+  bmw-cardata-imou:
+    build: .
+    container_name: bmw-cardata-imou
+    env_file:
+      - .env
+    volumes:
+      - bmw-cardata-state:/data
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  bmw-cardata-state:
+
