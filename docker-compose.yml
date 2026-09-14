@@ -11,6 +11,20 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  archive-explorer:
+    profiles: ["archive-explorer"]
+    build:
+      context: .
+      dockerfile: Dockerfile.explorer
+    container_name: bmw-cardata-archive-explorer
+    volumes:
+      - bmw-cardata-archive-data:/data
+    ports:
+      - "127.0.0.1:8501:8501"
+    init: true
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   bmw-cardata-state:
-
+  bmw-cardata-archive-data:

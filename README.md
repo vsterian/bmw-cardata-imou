@@ -105,6 +105,45 @@ docker compose run --rm bmw-cardata-imou python -m app.cli ZoomOut
 
 Set `IMOU_DRY_RUN=true` to validate BMW stream and geofence without moving camera. Set `false` for live camera actions.
 
+## CarData Archive Explorer
+
+The repository includes a separate local application for inspecting BMW CarData ZIP archives. It does not use BMW or Imou credentials and does not change the live camera automation.
+
+Features:
+
+- secure ZIP validation with path traversal, symbolic-link, size, and compression-ratio checks;
+- immutable original archive copy identified by SHA-256;
+- automatic CSV, JSON/NDJSON, and Parquet ingestion into DuckDB;
+- complete file and field catalogue, including unsupported files;
+- timestamp discovery, cross-dataset timeline, domain views, correlation windows, and maps;
+- dedicated seat/profile investigation with state, error, constraint, command-source, and value summaries;
+- raw record provenance, read-only SQL, and archive-to-archive schema comparison;
+- redacted CSV export by default.
+
+Run locally:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-explorer.txt
+python -m archive_explorer serve
+```
+
+Open `http://127.0.0.1:8501` and upload the ZIP. For large archives, ingest from the command line first:
+
+```bash
+python -m archive_explorer ingest /path/to/bmw-cardata.zip
+python -m archive_explorer serve
+```
+
+Run with Docker:
+
+```bash
+docker compose --profile archive-explorer up --build archive-explorer
+```
+
+Local Python mode stores explorer data under `data/archive-explorer/`, which is ignored by Git. Docker mode uses the persistent `bmw-cardata-archive-data` volume. The web port is bound to localhost only. Keep original archives, generated DuckDB files, screenshots, and raw exports out of source control because they may contain VIN, precise location, and personal telemetry.
+
 Run tests:
 
 ```bash
