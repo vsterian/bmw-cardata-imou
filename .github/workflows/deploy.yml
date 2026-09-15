@@ -33,7 +33,7 @@ jobs:
             docker compose up -d --build --remove-orphans
             docker compose ps
             for attempt in 1 2 3 4 5 6; do
-              test -s /var/lib/rpi-observability/bmw-cardata-imou/bmw-cardata-imou.prom && exit 0
+              test -s /var/lib/rpi-observability/apps/bmw-cardata-imou/bmw-cardata-imou.prom && exit 0
               sleep 5
             done
             echo "BMW observability metrics file was not published" >&2

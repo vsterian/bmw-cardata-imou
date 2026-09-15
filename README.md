@@ -115,7 +115,7 @@ python -m pytest
 ## Observability
 
 Service atomically publishes Prometheus text metrics to
-`/var/lib/rpi-observability/bmw-cardata-imou/bmw-cardata-imou.prom` through its
+`/var/lib/rpi-observability/apps/bmw-cardata-imou/bmw-cardata-imou.prom` through its
 `/metrics` bind mount. Metrics cover process heartbeat, BMW OAuth refresh,
 MQTT connection lifecycle, payload validity and queue drops, sanitized geofence
 state, and Imou action results. Metrics contain no VIN, coordinates, target
