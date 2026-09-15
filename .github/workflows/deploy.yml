@@ -33,7 +33,7 @@ jobs:
             sudo install -d -o 10001 -g 10001 -m 0755 /var/lib/rpi-observability/apps/bmw-cardata-imou
             docker compose up -d --build --remove-orphans
             docker compose ps
-            for attempt in 1 2 3 4 5 6; do
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
               test -s /var/lib/rpi-observability/apps/bmw-cardata-imou/bmw-cardata-imou.prom && exit 0
               sleep 5
             done
