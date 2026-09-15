@@ -30,6 +30,7 @@ jobs:
             set -eu
             mkdir -p "${{ secrets.PI_DEPLOY_PATH }}"
             cd "${{ secrets.PI_DEPLOY_PATH }}"
+            sudo install -d -o 10001 -g 10001 -m 0755 /var/lib/rpi-observability/apps/bmw-cardata-imou
             docker compose up -d --build --remove-orphans
             docker compose ps
             for attempt in 1 2 3 4 5 6; do
