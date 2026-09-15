@@ -15,8 +15,8 @@ jobs:
           host: ${{ secrets.PI_HOST }}
           port: ${{ secrets.PI_SSH_PORT || '21' }}
           username: ${{ secrets.PI_USER }}
-          password: ${{ secrets.PI_SSH_PASSWORD }}
-          source: "app,scripts,Dockerfile,docker-compose.yml,requirements.txt,.dockerignore,.env.example,README.md"
+          key: ${{ secrets.PI_SSH_KEY }}
+          source: "app,archive_explorer,scripts,Dockerfile,Dockerfile.explorer,docker-compose.yml,requirements.txt,requirements-explorer.txt,.dockerignore,.env.example,README.md"
           target: ${{ secrets.PI_DEPLOY_PATH }}
 
       - name: Rebuild and restart service
@@ -25,7 +25,7 @@ jobs:
           host: ${{ secrets.PI_HOST }}
           port: ${{ secrets.PI_SSH_PORT || '21' }}
           username: ${{ secrets.PI_USER }}
-          password: ${{ secrets.PI_SSH_PASSWORD }}
+          key: ${{ secrets.PI_SSH_KEY }}
           script: |
             set -eu
             mkdir -p "${{ secrets.PI_DEPLOY_PATH }}"
