@@ -120,7 +120,7 @@ class Metrics:
         lines = []
         for name, value in sorted(self._values.items()):
             sample = f'{name}{{product="{PRODUCT}"}}' if name in COMMON_METRICS else name
-            lines.append(f"# TYPE {name} {'counter' if name in COUNTERS else 'gauge'}\n{sample} {value:g}")
+            lines.append(f"# TYPE {name} {'counter' if name in COUNTERS else 'gauge'}\n{sample} {value:.15g}")
         content = "\n".join(lines) + "\n"
         fd, temporary = tempfile.mkstemp(prefix=f".{self.path.name}-", dir=self.path.parent)
         try:
