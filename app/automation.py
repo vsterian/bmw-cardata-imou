@@ -9,6 +9,7 @@ from typing import Protocol
 from .config import Settings
 from .imou import ImouClient
 from .location import Location, is_inside_target
+from .metrics import Metrics
 from .state import StateStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,11 +22,18 @@ class Camera(Protocol):
 class LocationAutomation:
     """Turn geofence enter/leave events into Imou actions."""
 
-    def __init__(self, settings: Settings, state_store: StateStore, camera: Camera | ImouClient) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        state_store: StateStore,
+        camera: Camera | ImouClient,
+        metrics: Metrics | None = None,
+    ) -> None:
         self.settings = settings
         self.state_store = state_store
         self.state = state_store.load()
         self.camera = camera
+        self.metrics = metrics
 
     async def process(self, location: Location) -> str:
         current = is_inside_target(
@@ -55,6 +63,14 @@ class LocationAutomation:
             _LOGGER.debug("Vehicle %s target %s", transition, self.settings.target_name)
 
         self.state.in_target = current
+        if self.metrics:
+            self.metrics.set("bmw_geofence_state", int(current))
+            if transition in {"arrived", "departed"}:
+                self.metrics.increment("bmw_geofence_transitions_total")
+                self.metrics.set(
+                    "bmw_geofence_last_transition_timestamp_seconds",
+                    datetime.now(timezone.utc).timestamp(),
+                )
         self.state.last_location = self.state_store.location_payload(
             location.latitude,
             location.longitude,

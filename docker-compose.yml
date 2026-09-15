@@ -6,6 +6,9 @@ services:
       - .env
     volumes:
       - bmw-cardata-state:/data
+      - type: bind
+        source: /var/lib/rpi-observability/bmw-cardata-imou
+        target: /metrics
     restart: unless-stopped
     init: true
     security_opt:
@@ -13,4 +16,3 @@ services:
 
 volumes:
   bmw-cardata-state:
-

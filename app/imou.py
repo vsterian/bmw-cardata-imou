@@ -11,6 +11,7 @@ from typing import Any
 import aiohttp
 
 from .config import Settings
+from .metrics import Metrics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,9 +23,10 @@ class ImouError(RuntimeError):
 class ImouClient:
     """Send PTZ/scene actions to one Imou camera."""
 
-    def __init__(self, session: aiohttp.ClientSession, settings: Settings) -> None:
+    def __init__(self, session: aiohttp.ClientSession, settings: Settings, metrics: Metrics | None = None) -> None:
         self.session = session
         self.settings = settings
+        self.metrics = metrics
 
     def _signature(self, timestamp: int, nonce: str) -> str:
         source = f"time:{timestamp},nonce:{nonce},appSecret:{self.settings.imou_app_secret}"
@@ -86,21 +88,40 @@ class ImouClient:
         valid_actions = {"ZoomOut", "Car", "ZoomIn", "Right", "Up", "Down"}
         if action not in valid_actions:
             raise ImouError(f"Unsupported Imou action: {action}")
-        if self.settings.imou_dry_run:
-            _LOGGER.warning("IMOU_DRY_RUN=true; would execute camera action %s", action)
-            return {"dry_run": True, "action": action}
-
-        token = await self.access_token()
-        return await self._post(
-            "turnCollection",
-            {
-                "id": str(uuid.uuid4()),
-                "system": self._system(),
-                "params": {
-                    "token": token,
-                    "deviceId": self.settings.imou_device_id,
-                    "channelId": self.settings.imou_channel_id,
-                    "name": action,
-                },
-            },
-        )
+        started = time.monotonic()
+        try:
+            if self.settings.imou_dry_run:
+                _LOGGER.warning("IMOU_DRY_RUN=true; would execute camera action %s", action)
+                result = {"dry_run": True, "action": action}
+            else:
+                token = await self.access_token()
+                result = await self._post(
+                    "turnCollection",
+                    {
+                        "id": str(uuid.uuid4()),
+                        "system": self._system(),
+                        "params": {
+                            "token": token,
+                            "deviceId": self.settings.imou_device_id,
+                            "channelId": self.settings.imou_channel_id,
+                            "name": action,
+                        },
+                    },
+                )
+        except Exception:
+            if self.metrics:
+                self.metrics.increment("imou_action_failure_total")
+                self.metrics.update(
+                    imou_last_action_success=0,
+                    imou_last_action_timestamp_seconds=time.time(),
+                    imou_last_action_duration_seconds=time.monotonic() - started,
+                )
+            raise
+        if self.metrics:
+            self.metrics.increment("imou_action_success_total")
+            self.metrics.update(
+                imou_last_action_success=1,
+                imou_last_action_timestamp_seconds=time.time(),
+                imou_last_action_duration_seconds=time.monotonic() - started,
+            )
+        return result

@@ -5,6 +5,7 @@ import pytest
 from app.automation import LocationAutomation
 from app.config import Settings
 from app.location import Location
+from app.metrics import Metrics
 from app.state import StateStore
 
 
@@ -61,3 +62,22 @@ async def test_enter_leave_actions_are_idempotent(tmp_path):
     assert await automation.process(outside) == "departed"
     assert await automation.process(outside) == "stationary"
     assert camera.actions == ["Car", "ZoomOut"]
+
+
+@pytest.mark.asyncio
+async def test_automation_exports_only_sanitized_geofence_state(tmp_path):
+    metrics_path = tmp_path / "metrics.prom"
+    metrics = Metrics(metrics_path)
+    automation = LocationAutomation(
+        make_settings(tmp_path),
+        StateStore(tmp_path / "state.json"),
+        FakeCamera(),
+        metrics,
+    )
+
+    assert await automation.process(Location(44.4268, 26.1025, "now")) == "arrived"
+    content = metrics_path.read_text(encoding="utf-8")
+    assert "bmw_geofence_state 1" in content
+    assert "bmw_geofence_transitions_total 1" in content
+    assert "44.4268" not in content
+    assert "26.1025" not in content

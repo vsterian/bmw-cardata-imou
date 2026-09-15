@@ -112,6 +112,30 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
+## Observability
+
+Service atomically publishes Prometheus text metrics to
+`/var/lib/rpi-observability/bmw-cardata-imou/bmw-cardata-imou.prom` through its
+`/metrics` bind mount. Metrics cover process heartbeat, BMW OAuth refresh,
+MQTT connection lifecycle, payload validity and queue drops, sanitized geofence
+state, and Imou action results. Metrics contain no VIN, coordinates, target
+name, camera identifier, URL, or credential labels.
+
+Common operational metrics use `service_up`,
+`last_loop_success_timestamp_seconds`,
+`last_dependency_success_timestamp_seconds`, `consecutive_failures`,
+`operations_success_total`, `operations_failure_total`, and
+`last_operation_duration_seconds` with only
+`product="bmw-cardata-imou"` as label.
+
+An idle BMW stream is healthy while process heartbeat and MQTT connection stay
+current. Car movement is not required for healthy status.
+
+Observability is part of feature definition of done. Any new business workflow,
+dependency, scheduled action, retry policy, or failure mode must update emitted
+metrics, central Grafana dashboard/alerts, tests, and project Wiki documentation.
+If dashboard behavior is unaffected, change documentation must state why.
+
 ## Raspberry Pi deployment
 
 Create deployment directory and `.env` on Pi once. Keep `.env` out of GitHub. GitHub Actions copies application files and runs Docker Compose.
@@ -123,7 +147,7 @@ Required GitHub repository secrets:
 | `PI_HOST` | Raspberry Pi hostname or IP |
 | `PI_SSH_PORT` | `21` |
 | `PI_USER` | Raspberry Pi SSH user |
-| `PI_SSH_PASSWORD` | Raspberry Pi SSH password |
+| `PI_SSH_KEY` | Dedicated Raspberry Pi GitHub deployment private key |
 | `PI_DEPLOY_PATH` | `/home/pi/repos/bmw-cardata-imou` |
 
 Workflow assumes Pi user can write deployment path and run Docker. Deployment workflow is manual-only; run `Deploy Raspberry Pi` from GitHub Actions when deployment is desired.

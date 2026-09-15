@@ -15,6 +15,7 @@ import aiohttp
 import paho.mqtt.client as mqtt
 
 from .config import Settings
+from .metrics import Metrics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -125,15 +126,17 @@ class BMWAuthenticator:
 class BMWStream:
     """Reconnectable MQTT stream with token refresh and async message delivery."""
 
-    def __init__(self, session: aiohttp.ClientSession, settings: Settings) -> None:
+    def __init__(self, session: aiohttp.ClientSession, settings: Settings, metrics: Metrics | None = None) -> None:
         self.settings = settings
         self.authenticator = BMWAuthenticator(session, settings)
+        self.metrics = metrics
         self.loop = asyncio.get_running_loop()
         self.queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=100)
         self.client: mqtt.Client | None = None
         self.connected = asyncio.Event()
         self.disconnected = asyncio.Event()
         self.stop_requested = False
+        self._connections = 0
 
     def _topic(self) -> str:
         return f"{self.settings.bmw_gcid}/{self.settings.bmw_vin}/#"
@@ -165,18 +168,33 @@ class BMWStream:
     ) -> None:
         if reason_code != 0:
             _LOGGER.error("BMW MQTT connection rejected: %s", reason_code)
+            if self.metrics:
+                self.metrics.set("bmw_mqtt_connected", 0)
             self.loop.call_soon_threadsafe(self.disconnected.set)
             return
         topic = userdata.get("topic") if isinstance(userdata, dict) else self._topic()
         result, _ = client.subscribe(topic)
         if result != mqtt.MQTT_ERR_SUCCESS:
             _LOGGER.error("BMW MQTT subscribe failed: %s", mqtt.error_string(result))
+            if self.metrics:
+                self.metrics.set("bmw_mqtt_connected", 0)
             self.loop.call_soon_threadsafe(self.disconnected.set)
             return
         _LOGGER.info("BMW MQTT connected; subscribed to configured VIN")
+        if self.metrics:
+            if self._connections:
+                self.metrics.increment("bmw_mqtt_reconnects_total")
+            self._connections += 1
+            self.metrics.update(
+                bmw_mqtt_connected=1,
+                last_dependency_success_timestamp_seconds=time.time(),
+            )
         self.loop.call_soon_threadsafe(self.connected.set)
 
     def _on_disconnect(self, client: mqtt.Client, userdata: Any, *args: Any, **kwargs: Any) -> None:
+        if self.metrics:
+            self.metrics.update(bmw_mqtt_connected=0)
+            self.metrics.increment("bmw_mqtt_disconnects_total")
         self.loop.call_soon_threadsafe(self.disconnected.set)
 
     def _on_message(self, client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
@@ -184,9 +202,15 @@ class BMWStream:
             payload = json.loads(message.payload.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             _LOGGER.warning("Ignoring invalid BMW MQTT JSON payload")
+            if self.metrics:
+                self.metrics.increment("bmw_mqtt_invalid_payloads_total")
             return
         if not isinstance(payload, dict):
+            if self.metrics:
+                self.metrics.increment("bmw_mqtt_invalid_payloads_total")
             return
+        if self.metrics:
+            self.metrics.increment("bmw_mqtt_valid_payloads_total")
         self.loop.call_soon_threadsafe(self._enqueue_payload, payload)
 
     def _enqueue_payload(self, payload: dict[str, Any]) -> None:
@@ -194,6 +218,8 @@ class BMWStream:
             self.queue.put_nowait(payload)
         except asyncio.QueueFull:
             _LOGGER.warning("BMW MQTT queue full; dropping payload")
+            if self.metrics:
+                self.metrics.increment("bmw_mqtt_queue_drops_total")
 
     async def _connect(self, id_token: str) -> None:
         self.connected.clear()
@@ -233,6 +259,12 @@ class BMWStream:
         while not self.stop_requested:
             try:
                 tokens = await self.authenticator.refresh()
+                if self.metrics:
+                    self.metrics.update(
+                        bmw_oauth_refresh_success=1,
+                        bmw_oauth_last_refresh_timestamp_seconds=time.time(),
+                        last_dependency_success_timestamp_seconds=time.time(),
+                    )
                 await self._connect(tokens["id_token"])
                 refresh_deadline = time.monotonic() + self.settings.bmw_refresh_interval_seconds
                 while not self.stop_requested and time.monotonic() < refresh_deadline:
@@ -242,16 +274,27 @@ class BMWStream:
                     try:
                         yield await asyncio.wait_for(self.queue.get(), timeout=timeout)
                     except TimeoutError:
+                        if self.metrics:
+                            self.metrics.heartbeat()
                         continue
             except BMWAuthError:
                 _LOGGER.exception("BMW authentication failed; retrying")
+                if self.metrics:
+                    self.metrics.update(bmw_oauth_refresh_success=0, bmw_mqtt_connected=0)
+                    self.metrics.increment("bmw_oauth_refresh_failures_total")
+                    self.metrics.failure()
                 await asyncio.sleep(self.settings.bmw_reconnect_delay_seconds)
             except BMWStreamError as exc:
                 _LOGGER.warning("%s; reconnecting", exc)
+                if self.metrics:
+                    self.metrics.set("bmw_mqtt_connected", 0)
+                    self.metrics.failure()
                 await asyncio.sleep(self.settings.bmw_reconnect_delay_seconds)
             finally:
                 await self._disconnect()
 
     async def stop(self) -> None:
         self.stop_requested = True
+        if self.metrics:
+            self.metrics.set("bmw_mqtt_connected", 0)
         await self._disconnect()
