@@ -5,15 +5,38 @@ on:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Join private deployment network
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4
+        with:
+          oauth-client-id: ${{ vars.TS_OIDC_CLIENT_ID }}
+          audience: ${{ vars.TS_AUDIENCE }}
+          tags: tag:pi-ci
+          version: 1.104.2
+
+      - name: Verify deployment network isolation
+        run: |
+          timeout 30 bash -c 'until nc -z -w 2 100.109.96.69 22; do sleep 1; done'
+          for endpoint in 100.109.96.69:8086 100.107.226.36:22 192.168.0.207:80; do
+            if nc -z -w 3 "${endpoint%:*}" "${endpoint##*:}"; then
+              echo "CI has unexpected network access: $endpoint" >&2
+              exit 1
+            fi
+          done
+
       - name: Copy application to Raspberry Pi
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.PI_HOST }}
-          port: ${{ secrets.PI_SSH_PORT || '21' }}
+          host: 100.109.96.69
+          port: 22
+          fingerprint: SHA256:vzM5XwXxU4dN/DIdia+bEUyjb5ixCxUdfmOEzD4SUJU
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
           source: "app,archive_explorer,scripts,Dockerfile,Dockerfile.explorer,docker-compose.yml,requirements.txt,requirements-explorer.txt,.dockerignore,.env.example,README.md"
@@ -22,8 +45,9 @@ jobs:
       - name: Rebuild and restart service
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.PI_HOST }}
-          port: ${{ secrets.PI_SSH_PORT || '21' }}
+          host: 100.109.96.69
+          port: 22
+          fingerprint: SHA256:vzM5XwXxU4dN/DIdia+bEUyjb5ixCxUdfmOEzD4SUJU
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
           script: |
