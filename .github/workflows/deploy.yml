@@ -5,6 +5,7 @@ on:
 
 jobs:
   deploy:
+    timeout-minutes: 45
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -50,8 +51,12 @@ jobs:
           fingerprint: SHA256:XXf7ARSvyDtg9M5lxRoUerguFe0wqdA6fmRn5ht8F7M
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
+          command_timeout: 40m
           script: |
             set -eu
+            mkdir -p "$HOME/.cache"
+            exec 9>"$HOME/.cache/pi-deploy.lock"
+            flock -w 1800 9
             mkdir -p "${{ secrets.PI_DEPLOY_PATH }}"
             cd "${{ secrets.PI_DEPLOY_PATH }}"
             test -d /var/lib/rpi-observability/apps/bmw-cardata-imou
